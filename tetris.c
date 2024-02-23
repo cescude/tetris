@@ -258,8 +258,6 @@ int main(int argc, char** argv) {
     }
     
     if ( evt & E_HDROP ) {
-      /* Find the lowest spot and force a new round */
-      st.y = landingPoint(&board, &st);
       end_round = 1;
     }
 
