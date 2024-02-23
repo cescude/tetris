@@ -244,8 +244,8 @@ int main(int argc, char** argv) {
     /* Try moving left/right or rotating left/right... */
     if ( evt & E_LEFT ) nx--;
     if ( evt & E_RIGHT ) nx++;
-    if ( evt & E_ROTL ) nd = (nd+NUM_PIECES) % 4;
-    if ( evt & E_ROTR ) nd = (nd+9) % 4;
+    if ( evt & E_ROTL ) nd = (nd+3) % 4;
+    if ( evt & E_ROTR ) nd = (nd+5) % 4;
 
     int end_round = 0;
 
