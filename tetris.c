@@ -1,39 +1,15 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <time.h>
+#include <unistd.h>
 
-void cursorOn(char show) {
-  printf("\033[?25%c", show ? 'h' : 'l');
-}
+#include "io.h"			/* Cursor & input functions  */
+#include "pieces.h"		/* Piece definitions */
 
-void cursorRt(int n) {
-  printf("\033[1C");
-}
-
-void cursorUp(int n) {
-  printf("\033[%dA", n);
-}
-
-void cursorDn(int n) {
-  printf("\033[%dB", n);
-}
-
-int width = 0;
-int height = 0;
-
-enum Piece {
-  P_O = 0,
-  P_L,
-  P_J,
-  P_S,
-  P_Z,
-  P_I,
-  P_T,
-  NUM_PIECES,
-};
-
-char piece_names[] = {'O', 'L', 'J', 'S', 'Z', 'I', 'T'};
+int WIDTH = 0;
+int HEIGHT = 0;
 
 struct State {
   int x, y, dir;
@@ -41,68 +17,11 @@ struct State {
   int score;
 };
 
-#define init4(dst, a, b, c, d) {			\
-    dst[0] = a; dst[1] = b; dst[2] = c; dst[3] = d;	\
-  }
-
-void getOffsets(int offsets[4], enum Piece p, int variant) {
-  switch (p) {
-  case NUM_PIECES:
-    printf("Bad times!\n");
-    exit(1);
-    break;
-  case P_O:
-    init4(offsets, 0, 1, width, width+1); break;
-  case P_L:
-    switch (variant % 4) {
-    case 0: init4(offsets, 0, width, 2*width, 2*width+1); break;
-    case 1: init4(offsets, width, width+1, width+2, 2*width); break;
-    case 2: init4(offsets, width, width+1, 2*width+1, 3*width+1); break;
-    case 3: init4(offsets, width+1, 2*width+1, 2*width, 2*width-1); break;
-    }
-    break;
-  case P_J:
-    switch (variant % 4) {
-    case 0: init4(offsets, -width+1, 1, width, width+1); break;
-    case 1: init4(offsets, 0, width, width+1, width+2); break;
-    case 2: init4(offsets, 0, 1, 1*width, 2*width); break;
-    case 3: init4(offsets, -1, 0, 1, width+1); break;
-    }
-    break;
-  case P_T:
-    switch (variant % 4) {
-    case 0: init4(offsets, -width, -1, 0, 1); break;
-    case 1: init4(offsets, -width, 0, 1, width); break;
-    case 2: init4(offsets, -1, 0, 1, width); break;
-    case 3: init4(offsets, -width, 0, -1, width); break;
-    }
-    break;
-  case P_S:
-    switch (variant % 2) {
-    case 0: init4(offsets,  width+1, width+2, 2*width, 2*width+1 ); break;
-    case 1: init4(offsets,  0, width, width+1, 2*width+1 ); break;
-    }
-    break;
-  case P_Z:
-    switch (variant % 2) {
-    case 0: init4(offsets,  width, width+1, 2*width+1, 2*width+2 ); break;
-    case 1: init4(offsets,  1, width, width+1, 2*width ); break;
-    }
-    break;
-  case P_I:
-    switch (variant % 2) {
-    case 0: init4(offsets, 0, 1, 2, 3 ); break;
-    case 1: init4(offsets, -width+1, 1, width+1, 2*width+1 ); break;
-    }
-    break;
-  }
-}
-
 void printLayer(char *buffer, char clear) {
-  for ( int i=0; i<height; i++ ) {
-    for ( int j=0; j<width; j++ ) {
-      if ( buffer[i*width+j] ) {
-	putchar(buffer[i*width+j]);
+  for ( int i=0; i<HEIGHT; i++ ) {
+    for ( int j=0; j<WIDTH; j++ ) {
+      if ( buffer[i*WIDTH+j] ) {
+	putchar(buffer[i*WIDTH+j]);
       } else if (clear) {
 	putchar(' ');
       } else {
@@ -112,17 +31,17 @@ void printLayer(char *buffer, char clear) {
     putchar('\n');
   }
 
-  cursorUp(height);
+  cursorUp(HEIGHT);
 }
 
 void placePiece(char *buffer, enum Piece p, int rotation, int x, int y, char ch) {
   int offsets[4] = {0};
-  getOffsets(offsets, p, rotation);
+  getOffsets(offsets, p, rotation, WIDTH);
 
-  int start = y*width+x;
+  int start = y*WIDTH+x;
   for ( int i=0; i<4; i++ ) {
     int offset = start + offsets[i];
-    if ( 0 <= offset && offset < width*height ) {
+    if ( 0 <= offset && offset < WIDTH*HEIGHT ) {
       buffer[offset] = ch;
     }
   }
@@ -131,72 +50,17 @@ void placePiece(char *buffer, enum Piece p, int rotation, int x, int y, char ch)
 /* return 1 if `p` can be placed at this location */
 int testPiece(char *buffer, enum Piece p, int rotation, int x, int y) {
   int offsets[4] = {0};
-  getOffsets(offsets, p, rotation);
+  getOffsets(offsets, p, rotation, WIDTH);
 
-  int start = y*width+x;
+  int start = y*WIDTH+x;
   for ( int i=0; i<4; i++ ) {
     int offset = start + offsets[i];
-    if ( 0 <= offset && offset < width*height && buffer[offset] ) {
+    if ( 0 <= offset && offset < WIDTH*HEIGHT && buffer[offset] ) {
       return 0;
     }
   }
 
   return 1;
-}
-
-#include <unistd.h>
-#include <termios.h>
-
-enum Event {
-  E_TIMER = 1,
-  E_QUIT = 2,
-  E_LEFT = 4,
-  E_RIGHT = 8,
-  E_ROTL = 16,
-  E_ROTR = 32,
-  E_HDROP = 64,
-  E_SDROP = 128,
-};
-
-int getEvents(int delay) {
-  struct termios attr = {0};
-  if ( tcgetattr( 0, &attr ) < 0 ) {
-    perror("tcgetattr");
-  }
-
-  attr.c_lflag &= ~ICANON;
-  attr.c_lflag &= ~ECHO;
-  attr.c_cc[VMIN] = 0;
-  attr.c_cc[VTIME] = delay; /* tenths of a second */
-
-  if ( tcsetattr( 0, TCSANOW, &attr ) < 0 ) {
-    perror( "tcsetattr" );
-  }
-
-  int result = 0;
-  char buf = 0;
-  if ( read( 0, &buf, 1 ) > 0 ) {
-    switch ( buf ) {
-    case 'q': result |= E_QUIT; break;
-    case 'j': case 'h': result |= E_LEFT; break;
-    case 'k': case 'l': result |= E_RIGHT; break;
-    case 'd': result |= E_ROTL; break;
-    case 'f': result |= E_ROTR; break;
-    case 'n': result |= E_SDROP; break;
-    case ' ': result |= E_HDROP; break;
-    }
-  } else {
-    result = E_TIMER;
-  }
-
-  attr.c_lflag |= ICANON;
-  attr.c_lflag |= ECHO;
-
-  if ( tcsetattr( 0, TCSADRAIN, &attr ) ) {
-    perror( "tcsetattr (reset)" );
-  }
-
-  return result;
 }
 
 int landingPoint(char *background, enum Piece p, int dir, int x, int y) {
@@ -219,25 +83,25 @@ void drawFrame(char *background, struct State *st, char include_ghost) {
 
   printLayer(layer, 0);
 
-  cursorDn(height);
+  cursorDn(HEIGHT);
   printf("SCORE=%d, NEXT=%c\n", st->score, piece_names[st->pn]);
-  cursorUp(height + 1);
+  cursorUp(HEIGHT + 1);
 }
 
 void initBoard(char *layer) {
-  memset(layer, 0, width*height);
-  for (int i=0; i<height-1; i++) {
-    layer[i*width] = layer[i*width+width-1] = '|';
+  memset(layer, 0, WIDTH*HEIGHT);
+  for (int i=0; i<HEIGHT-1; i++) {
+    layer[i*WIDTH] = layer[i*WIDTH+WIDTH-1] = '|';
   }
 
-  for (int i=0; i<width; i++) {
-    layer[(height-1)*width+i] = '-';
+  for (int i=0; i<WIDTH; i++) {
+    layer[(HEIGHT-1)*WIDTH+i] = '-';
   }
 }
 
 int testLine(char *background, int y) {
-  int offset = y * width;
-  for (int i=0; i<width; i++) {
+  int offset = y * WIDTH;
+  for (int i=0; i<WIDTH; i++) {
     if ( !background[offset+i] ) {
       return 0;
     }
@@ -247,26 +111,26 @@ int testLine(char *background, int y) {
 
 void squashLine(char *background, int y) {
   for (; y>0; y--) {
-    int offset = y * width;
-    for (int i=0; i<width; i++) {
-      background[offset+i] = background[offset-width+i];
+    int offset = y * WIDTH;
+    for (int i=0; i<WIDTH; i++) {
+      background[offset+i] = background[offset-WIDTH+i];
     }
   }
-  for (int i=1; i<width-2; i++) {
+  for (int i=1; i<WIDTH-2; i++) {
     background[i] = 0;
   }
 }
 
 int countAllLines(char *background) {
   int num_lines = 0;
-  for ( int i=0; i<height-1; i++ ) {
+  for ( int i=0; i<HEIGHT-1; i++ ) {
     num_lines += testLine(background, i);
   }
   return num_lines;
 }
 
 void squashAllLines(char *background) {
-  for (int i=0; i<height-1; i++) {
+  for (int i=0; i<HEIGHT-1; i++) {
     if (testLine(background, i)) {
       squashLine(background, i);
     }
@@ -291,7 +155,7 @@ int nextRound(char *background, struct State *st) {
   st->p = st->pn;
   while ( (st->pn = rand()%NUM_PIECES) == st->p ); /* Don't do two-in-a-rows */
   st->dir = 0;
-  st->x = width/2-1;
+  st->x = WIDTH/2-1;
   st->y = 0;
   st->score += num_lines;
 
@@ -304,14 +168,14 @@ int computeDelay(int score) {
 }
 
 int main(int argc, char** argv) {
-  width = argc > 1 ? atoi(argv[1]) : 12;
-  height = argc > 2 ? atoi(argv[2]) : 11;
+  WIDTH = argc > 1 ? atoi(argv[1]) : 12;
+  HEIGHT = argc > 2 ? atoi(argv[2]) : 11;
 
   srand(time(0));
 
-  char board[10000] = {0};
+  char *board = (char*)malloc(sizeof(char)*WIDTH*HEIGHT);
 
-  if ( width * height < sizeof(board) ) {
+  if ( board ) {
     initBoard(board);
   } else {
     printf( "Too large!\n" );
@@ -319,7 +183,7 @@ int main(int argc, char** argv) {
   }
 
   struct State st = {
-    .x = width/2-1,
+    .x = WIDTH/2-1,
     .y = -1,
     .dir = 0,
     .score = 0,
@@ -374,11 +238,11 @@ int main(int argc, char** argv) {
   }
 
   char overlay[10000] = {0};
-  memcpy(overlay, board, width*height);
+  memcpy(overlay, board, WIDTH*HEIGHT);
   
-  for (int limit=height-2; limit>=0; limit-=1) {
-    for (int i=height-2; i>=limit; i--) {
-      memset(overlay + i*width + 1, 'X', width - 2);
+  for (int limit=HEIGHT-2; limit>=0; limit-=1) {
+    for (int i=HEIGHT-2; i>=limit; i--) {
+      memset(overlay + i*WIDTH + 1, 'X', WIDTH - 2);
     }
     printLayer(overlay, 1);
     getEvents(1);
@@ -386,8 +250,9 @@ int main(int argc, char** argv) {
 
   drawFrame(board, &st, 1);
 
-  cursorDn(height + 2);
+  free(board);
 
+  cursorDn(HEIGHT + 2);
   cursorOn(1);
   
   return 0;
