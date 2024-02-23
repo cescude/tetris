@@ -3,8 +3,20 @@
 #include <string.h>
 #include <time.h>
 
-void cursor(char show) {
+void cursorOn(char show) {
   printf("\033[?25%c", show ? 'h' : 'l');
+}
+
+void cursorRt(int n) {
+  printf("\033[1C");
+}
+
+void cursorUp(int n) {
+  printf("\033[%dA", n);
+}
+
+void cursorDn(int n) {
+  printf("\033[%dB", n);
 }
 
 int width = 0;
@@ -94,13 +106,13 @@ void printLayer(char *buffer, char clear) {
       } else if (clear) {
 	putchar(' ');
       } else {
-	printf("\033[1C"); /* Move to the right w/out printing anything */
+	cursorRt(1);   /* Move to the right w/out printing anything */
       }
     }
     putchar('\n');
   }
 
-  printf("\033[%dA", height);
+  cursorUp(height);
 }
 
 void placePiece(char *buffer, enum Piece p, int rotation, int x, int y, char ch) {
@@ -207,9 +219,9 @@ void drawFrame(char *background, struct State *st, char include_ghost) {
 
   printLayer(layer, 0);
 
-  printf("\033[%dB", height);
+  cursorDn(height);
   printf("SCORE=%d, NEXT=%c\n", st->score, piece_names[st->pn]);
-  printf("\033[%dA", height + 1);
+  cursorUp(height + 1);
 }
 
 void initBoard(char *layer) {
@@ -317,7 +329,7 @@ int main(int argc, char** argv) {
 
   drawFrame(board, &st, 1);
 
-  cursor(0);
+  cursorOn(0);
     
   while (1) {
     int evt = getEvents(computeDelay(st.score));
@@ -374,9 +386,9 @@ int main(int argc, char** argv) {
 
   drawFrame(board, &st, 1);
 
-  printf("\033[%dB", height + 2);
+  cursorDn(height + 2);
 
-  cursor(1);
+  cursorOn(1);
   
   return 0;
 }
