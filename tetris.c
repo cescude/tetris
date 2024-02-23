@@ -22,7 +22,6 @@ enum Piece {
 };
 
 char piece_names[] = {'O', 'L', 'J', 'S', 'Z', 'I', 'T'};
-char garbage[] = "!@#$%^&*";
 
 struct State {
   int x, y, dir;
@@ -246,30 +245,43 @@ void squashLine(char *background, int y) {
   }
 }
 
+int countAllLines(char *background) {
+  int num_lines = 0;
+  for ( int i=0; i<height-1; i++ ) {
+    num_lines += testLine(background, i);
+  }
+  return num_lines;
+}
+
+void squashAllLines(char *background) {
+  for (int i=0; i<height-1; i++) {
+    if (testLine(background, i)) {
+      squashLine(background, i);
+    }
+  }
+}
+
 /* return 0 if there can't be another round... */
-int nextRound(char *background, struct State *st) {//enum Piece *p, int *dir, int *x, int *y, int *score, int *delay) {
+int nextRound(char *background, struct State *st) {
   st->y = landingPoint(background, st->p, st->dir, st->x, st->y);
   
   placePiece(background, st->p, st->dir, st->x, st->y, '#');
 
   /* Check to see if we've cleared any lines */
-  int numlines = 0;
-  for (int j=height-2; j>0; j--) {
-    if ( testLine(background, j) ) {
-      drawFrame(background, st, 0);
-      numlines++;
-      getEvents(3);		/* just need a simple timer */
-      squashLine(background, j);
-      j++;
-    }
+  int num_lines = countAllLines(background);
+
+  if ( num_lines ) {
+    drawFrame(background, st, 0);
+    getEvents(num_lines);	/* Just need a simple delay */
+    squashAllLines(background);
   }
 
   st->p = st->pn;
-  st->pn = rand()%NUM_PIECES;
+  while ( (st->pn = rand()%NUM_PIECES) == st->p ); /* Don't do two-in-a-rows */
   st->dir = 0;
   st->x = width/2-1;
   st->y = 0;
-  st->score += numlines;
+  st->score += num_lines;
 
   return testPiece(background, st->p, st->dir, st->x, st->y);
 }
