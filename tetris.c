@@ -24,15 +24,16 @@ struct Board {
 void printLayer(char *buffer, int width, int height, char clear) {
   for ( int i=0; i<height; i++ ) {
     for ( int j=0; j<width; j++ ) {
-      if ( buffer[i*width+j] ) {
-	putchar(buffer[i*width+j]);
-      } else if (clear) {
-	putchar(' ');
-      } else {
-	cursorRt(1);   /* Move to the right w/out printing anything */
+      switch ( buffer[i*width+j] ) {
+      case 0: if (clear) putstr(" "); else cursorRt(1); break;
+      case '#': putstr("\u25A0"); break;
+      case '@': putstr("\u25A4"); break;
+      case '.': putstr("\u25A1"); break;
+      default:
+	putstr("\u25AE"); break;
       }
     }
-    putchar('\n');
+    putstr("\n");
   }
 
   cursorUp(height);
@@ -103,9 +104,11 @@ void stampPlayer(struct Board *board, struct Player *st) {
 void printStats(struct Board *board, struct Player *st, int offset) {
   cursorDn(board->height + offset);
   if ( st->active ) {
-    printf("P%d SCORE=%d, NEXT=%c\n", offset+1, st->score, piece_names[st->pn]);
+    char buffer[100] = {0};
+    snprintf(buffer, sizeof(buffer), "P%d SCORE=%d, NEXT=%c\n", offset+1, st->score, piece_names[st->pn]);
+    putstr(buffer);
   } else {
-    printf("PLAYER 2?\n");
+    putstr("PLAYER 2?\n");
   }
   cursorUp(board->height + offset + 1);
 }
@@ -135,6 +138,8 @@ void drawFrame(struct Board *board, struct Player *pl1, struct Player *pl2) {
 
   printStats(board, pl1, 0);
   printStats(board, pl2, 1);
+
+  flip();
 }
 
 void initBoard(struct Board *board) {
@@ -277,7 +282,7 @@ int main(int argc, char** argv) {
 
   char* buffer = (char*)malloc(sizeof(char)*WIDTH*2*HEIGHT);
   if ( !buffer ) {
-    printf("Too large!\n");
+    putstr("Too large!\n");
     return 1;
   }
 
@@ -341,15 +346,21 @@ int main(int argc, char** argv) {
 
     printBackground(&board);
     printForeground(&board);
+    flip();
     getEvents(1);
   }
 
   printBackground(&board);
+
+  pl1.active = pl2.active = 1;
+  printStats(&board, &pl1, 0);
+  printStats(&board, &pl2, 1);
 
   free(buffer);
 
   cursorDn(HEIGHT + 2);
   cursorOn();
   
+  flip();
   return 0;
 }

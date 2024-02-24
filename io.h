@@ -87,24 +87,50 @@ unsigned short getEvents(int delay) {
   return (k2 << 8) + k1;
 }
 
+int buffer_len = 0;
+char buffer[10000] = {0};
+
+void putstr(char* s) {
+  for ( int i=0; s[i]; i++ ) {
+    buffer[buffer_len++] = s[i];
+  }
+}
+
+void flip() {
+  int bytes_written = 0;
+  while (bytes_written < buffer_len) {
+    int result = write(1, buffer + bytes_written, buffer_len - bytes_written);
+    if ( result < 0 ) {
+      perror("flip/write");
+    }
+    bytes_written += result;
+  }
+
+  buffer_len = 0;
+  buffer[0] = 0;
+}
+
 void cursorOn() {
-  printf("\033[?25h");
+  putstr("\033[?25h");
 }
 
 void cursorOff() {
-  printf("\033[?25l");
+  putstr("\033[?25l");
 }
 
 void cursorRt(int n) {
-  printf("\033[1C");
+  snprintf(buffer+buffer_len, sizeof(buffer)-buffer_len, "\033[%dC", n);
+  buffer_len += strlen(buffer+buffer_len);
 }
 
 void cursorUp(int n) {
-  printf("\033[%dA", n);
+  snprintf(buffer+buffer_len, sizeof(buffer)-buffer_len, "\033[%dA", n);
+  buffer_len += strlen(buffer+buffer_len);
 }
 
 void cursorDn(int n) {
-  printf("\033[%dB", n);
+  snprintf(buffer+buffer_len, sizeof(buffer)-buffer_len, "\033[%dB", n);
+  buffer_len += strlen(buffer+buffer_len);
 }
 
 #endif
