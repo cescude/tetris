@@ -8,10 +8,11 @@
 #include "io.h"			/* Cursor & input functions  */
 #include "pieces.h"		/* Piece definitions */
 
-struct State {
+struct Player {
   int x, y, dir;
   enum Piece p, pn;
   int score;
+  int active;
 };
 
 struct Board {
@@ -61,7 +62,7 @@ int testPiece(struct Board *board, enum Piece p, int rotation, int x, int y) {
   return 1;
 }
 
-int landingPoint(struct Board *board, struct State *st) {
+int landingPoint(struct Board *board, struct Player *st) {
   int y = st->y;
   
   /* go down until we collide */
@@ -85,37 +86,55 @@ void placePiece(char *buffer, int width, int height, enum Piece p, int rotation,
   }
 }
 
-void placeGhost(struct Board *board, struct State *st) {
+void placeGhost(struct Board *board, struct Player *st) {
   int ghost_point = landingPoint(board, st);
   placePiece(board->foreground, board->width, board->height, st->p, st->dir, st->x, ghost_point, '.');
 }
 
-void placePlayer(struct Board *board, struct State *st) {
-  placePiece(board->foreground, board->width, board->height, st->p, st->dir, st->x, st->y, '#');
+void placePlayer(struct Board *board, struct Player *st, char id) {
+  placePiece(board->foreground, board->width, board->height, st->p, st->dir, st->x, st->y, id);
 }
 
-void stampPlayer(struct Board *board, struct State *st) {
+void stampPlayer(struct Board *board, struct Player *st) {
   int stamp_point = landingPoint(board, st);
-  placePiece(board->background, board->width, board->height, st->p, st->dir, st->x, stamp_point, '#');
+  placePiece(board->background, board->width, board->height, st->p, st->dir, st->x, stamp_point, '%');
 }
 
-void printStats(struct Board *board, struct State *st) {
-  cursorDn(board->height);
-  printf("SCORE=%d, NEXT=%c\n", st->score, piece_names[st->pn]);
-  cursorUp(board->height + 1);
+void printStats(struct Board *board, struct Player *st, int offset) {
+  cursorDn(board->height + offset);
+  if ( st->active ) {
+    printf("P%d SCORE=%d, NEXT=%c\n", offset+1, st->score, piece_names[st->pn]);
+  } else {
+    printf("PLAYER 2?\n");
+  }
+  cursorUp(board->height + offset + 1);
 }
 
-void drawFrame(struct Board *board, struct State *st) {
+void drawFrame(struct Board *board, struct Player *pl1, struct Player *pl2) {
   printBackground(board);
 
   memset(board->foreground, 0, board->width*board->height);
-  
-  placeGhost(board, st);
-  placePlayer(board, st);
+
+  if ( pl1->active ) {
+    placeGhost(board, pl1);
+  }
+
+  if ( pl2->active ) {
+    placeGhost(board, pl2);
+  }
+
+  if ( pl1->active ) {
+    placePlayer(board, pl1, '#');
+  }
+
+  if ( pl2->active ) {
+    placePlayer(board, pl2, '@');
+  }
   
   printForeground(board);
 
-  printStats(board, st);
+  printStats(board, pl1, 0);
+  printStats(board, pl2, 1);
 }
 
 void initBoard(struct Board *board) {
@@ -173,7 +192,7 @@ void squashAllLines(struct Board *board) {
 }
 
 /* return 0 if there can't be another round... */
-int nextRound(struct Board *board, struct State *st) {
+int nextRound(struct Board *board, struct Player *st) {
 
   stampPlayer(board, st);
 
@@ -200,9 +219,59 @@ int computeDelay(int score) {
   return delay < 0 ? 0 : delay;
 }
 
+
+/* return 0 if end-of-game, 1 otherwise */
+int playerLogic(struct Board *board, struct Player *st, char evt) {
+
+  /* Set player to active if a movement key was detected */
+  if ( evt & E_MOVEMENT_KEY ) {
+    st->active = 1;
+  }
+
+  /* Set player to inactive if the player quit */
+  if ( evt & E_QUIT ) {
+    st->active = 0;
+  }
+
+  /* When player isn't active, don't do anything? */
+  if (!st->active) return 1;
+
+  int nx = st->x;
+  int nd = st->dir;
+  
+  /* Try moving left/right or rotating left/right... */
+  if ( evt & E_LEFT ) nx--;
+  if ( evt & E_RIGHT ) nx++;
+  if ( evt & E_ROTL ) nd = (nd+3) % 4;
+  if ( evt & E_ROTR ) nd = (nd+5) % 4;
+
+  if ( testPiece(board, st->p, nd, nx, st->y) ) {
+    st->dir = nd;
+    st->x = nx;
+  }
+
+  int ny = st->y;
+
+  if ( evt & (E_TIMER | E_SDROP) ) {
+    ny++;
+  }
+  
+  if ( testPiece(board, st->p, st->dir, st->x, ny) ) {
+    st->y = ny;
+  } else {
+    return nextRound(board, st);
+  }
+    
+  if ( evt & E_HDROP ) {
+    return nextRound(board, st);
+  }
+
+  return 1;
+}
+
 int main(int argc, char** argv) {
-  int WIDTH = argc > 1 ? atoi(argv[1]) : 12;
-  int HEIGHT = argc > 2 ? atoi(argv[2]) : 11;
+  int WIDTH = argc > 1 ? atoi(argv[1])+2 : 12;
+  int HEIGHT = argc > 2 ? atoi(argv[2])+1 : 21;
 
   srand(time(0));
 
@@ -221,57 +290,46 @@ int main(int argc, char** argv) {
 
   initBoard(&board);
 
-  struct State st = {
+  struct Player pl1 = {
     .x = WIDTH/2-1,
     .y = -1,
     .dir = 0,
     .score = 0,
     .p = rand()%NUM_PIECES,
     .pn = rand()%NUM_PIECES,
+    .active = 1,
   };
 
-  drawFrame(&board, &st);
+  struct Player pl2 = {
+    .x = WIDTH/2-1,
+    .y = -1,
+    .dir = 0,
+    .score = 0,
+    .p = rand()%NUM_PIECES,
+    .pn = rand()%NUM_PIECES,
+    .active = 0,
+  };
 
-  cursorOn(0);
+  cursorOff();
     
+  drawFrame(&board, &pl1, &pl2);
+
   while (1) {
-    int evt = getEvents(computeDelay(st.score));
+    short evt = getEvents(computeDelay(pl1.score + pl2.score));
+    char p1evt = evt & 0xFF;
+    char p2evt = evt >> 8;
 
-    int nx = st.x, nd = st.dir;
-    
-    if ( evt & E_QUIT ) break;
-
-    /* Try moving left/right or rotating left/right... */
-    if ( evt & E_LEFT ) nx--;
-    if ( evt & E_RIGHT ) nx++;
-    if ( evt & E_ROTL ) nd = (nd+3) % 4;
-    if ( evt & E_ROTR ) nd = (nd+5) % 4;
-
-    int end_round = 0;
-
-    if ( (evt & E_TIMER) || (evt & E_SDROP) ) {
-      if ( testPiece(&board, st.p, st.dir, st.x, st.y+1) ) {
-	st.y++;
-      } else {
-	end_round = 1;
-      }
+    if (!playerLogic(&board, &pl1, p1evt)) {
+      break;
     }
     
-    if ( evt & E_HDROP ) {
-      end_round = 1;
+    if (!playerLogic(&board, &pl2, p2evt)) {
+      break;
     }
 
+    if ( !pl1.active && !pl2.active ) break;
 
-    if ( end_round ) {
-      if ( !nextRound(&board, &st) ) {
-	break;
-      }
-    } else if ( testPiece(&board, st.p, nd, nx, st.y) ) {
-      st.dir = nd;
-      st.x = nx;
-    } 
-    
-    drawFrame(&board, &st);
+    drawFrame(&board, &pl1, &pl2);
   }
 
   memcpy(board.foreground, board.background, WIDTH*HEIGHT);
@@ -280,6 +338,7 @@ int main(int argc, char** argv) {
     for (int i=HEIGHT-2; i>=limit; i--) {
       memset(board.foreground + i*WIDTH + 1, 'X', WIDTH - 2);
     }
+
     printBackground(&board);
     printForeground(&board);
     getEvents(1);
@@ -290,7 +349,7 @@ int main(int argc, char** argv) {
   free(buffer);
 
   cursorDn(HEIGHT + 2);
-  cursorOn(1);
+  cursorOn();
   
   return 0;
 }
