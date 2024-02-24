@@ -24,13 +24,20 @@ struct Board {
 void printLayer(char *buffer, int width, int height, char clear) {
   for ( int i=0; i<height; i++ ) {
     for ( int j=0; j<width; j++ ) {
-      switch ( buffer[i*width+j] ) {
-      case 0: if (clear) putstr(" "); else cursorRt(1); break;
-      case '#': putstr("\u25A0"); break;
-      case '@': putstr("\u25A4"); break;
-      case '.': putstr("\u25A1"); break;
-      default:
-	putstr("\u25AE"); break;
+      /* switch ( buffer[i*width+j] ) { */
+      /* case 0: if (clear) putstr(" "); else cursorRt(1); break; */
+      /* case '#': putstr("\u25A0"); break; */
+      /* case '@': putstr("\u25A3"); break; */
+      /* case '.': putstr("\u25A1"); break; */
+      /* default: */
+      /* 	putstr("\u25A0"); break; */
+      /* } */
+      if ( buffer[i*width+j] ) {
+	putchr(buffer[i*width+j]);
+      } else if (clear) {
+	putchr(' ');
+      } else {
+	cursorRt(1);
       }
     }
     putstr("\n");
@@ -98,7 +105,7 @@ void placePlayer(struct Board *board, struct Player *st, char id) {
 
 void stampPlayer(struct Board *board, struct Player *st) {
   int stamp_point = landingPoint(board, st);
-  placePiece(board->background, board->width, board->height, st->p, st->dir, st->x, stamp_point, '%');
+  placePiece(board->background, board->width, board->height, st->p, st->dir, st->x, stamp_point, '#');
 }
 
 void printStats(struct Board *board, struct Player *st, int offset) {
@@ -205,7 +212,8 @@ int nextRound(struct Board *board, struct Player *st) {
 
   if ( num_lines ) {
     printBackground(board);
-    getEvents(num_lines);	/* Just need a simple delay */
+    flip();
+    getEvents(num_lines*2);	/* Just need a simple delay */
     squashAllLines(board);
   }
 

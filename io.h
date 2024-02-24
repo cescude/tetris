@@ -1,20 +1,20 @@
 #ifndef __IO_H__
 #define __IO_H__
 
-#define P1_LEFT 'j'
-#define P1_RIGHT 'k'
-#define P1_ROTL 'u'
-#define P1_ROTR 'i'
-#define P1_SDROP 'n'
-#define P1_HDROP 'h'
+#define P1_LEFT 'h'
+#define P1_RIGHT 'l'
+#define P1_ROTL 'j'
+#define P1_ROTR 'k'
+#define P1_SDROP 'u'
+#define P1_HDROP 'n'
 #define P1_QUIT 'q'
 
-#define P2_LEFT 'd'
-#define P2_RIGHT 'f'
-#define P2_ROTL 'e'
-#define P2_ROTR 'r'
-#define P2_SDROP 'v'
-#define P2_HDROP 'g'
+#define P2_LEFT 's'
+#define P2_RIGHT 'g'
+#define P2_ROTL 'd'
+#define P2_ROTR 'f'
+#define P2_SDROP 'r'
+#define P2_HDROP 'v'
 #define P2_QUIT 'q'
 
 enum Event {
@@ -87,13 +87,17 @@ unsigned short getEvents(int delay) {
   return (k2 << 8) + k1;
 }
 
-int buffer_len = 0;
-char buffer[10000] = {0};
+static int buffer_len = 0;
+static char buffer[10000] = {0};
 
 void putstr(char* s) {
   for ( int i=0; s[i]; i++ ) {
     buffer[buffer_len++] = s[i];
   }
+}
+
+void putchr(char c) {
+  buffer[buffer_len++] = c;
 }
 
 void flip() {
