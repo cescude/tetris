@@ -8,8 +8,6 @@
 #include "io.h"			/* Cursor & input functions  */
 #include "pieces.h"		/* Piece definitions */
 
-FILE* log = NULL;
-
 struct Player {
   int x, y, dir;
   enum Piece p, pn;
@@ -27,12 +25,13 @@ void printLayer(char *buffer, int width, int height, char clear) {
   for ( int i=0; i<height; i++ ) {
     for ( int j=0; j<width; j++ ) {
       switch ( buffer[i*width+j] ) {
-      case 0: if (clear) putstr(" "); else cursorRt(1); break;
-      case '#': putstr("\u25A0"); break;
-      case '@': putstr("\u25A3"); break;
-      case '.': putstr("\u25A1"); break;
+      case 0: if (clear) putstr("  "); else cursorRt(2); break;
+      case '#': putstr("##"); break;
+      case '@': putstr("@@"); break;
+      case '.': putstr(".."); break;
       default:
-	putstr("\u25A0"); break;
+	putstr("XX"); break;
+	break;
       }
     }
     putstr("\n");
@@ -100,7 +99,7 @@ void placePlayer(struct Board *board, struct Player *st, char id) {
 
 void stampPlayer(struct Board *board, struct Player *st) {
   int stamp_point = landingPoint(board, st);
-  placePiece(board->background, board->width, board->height, st->p, st->dir, st->x, stamp_point, '#');
+  placePiece(board->background, board->width, board->height, st->p, st->dir, st->x, stamp_point, '^');
 }
 
 void printStats(struct Board *board, struct Player *st, int offset) {
@@ -235,12 +234,12 @@ int computeDelay(int score) {
 int playerLogic(struct Board *board, struct Player *st, char evt, char force_drop) {
 
   /* Set player to active if a movement key was detected */
-  if ( evt & E_MOVEMENT_KEY ) {
+  if ( evt & B_MOVEMENT_KEY ) {
     st->active = 1;
   }
 
   /* Set player to inactive if the player quit */
-  if ( evt & E_QUIT ) {
+  if ( evt & B_QUIT ) {
     st->active = 0;
   }
 
@@ -251,10 +250,10 @@ int playerLogic(struct Board *board, struct Player *st, char evt, char force_dro
   int nd = st->dir;
   
   /* Try moving left/right or rotating left/right... */
-  if ( evt & E_LEFT ) nx--;
-  if ( evt & E_RIGHT ) nx++;
-  if ( evt & E_ROTL ) nd = (nd+3) % 4;
-  if ( evt & E_ROTR ) nd = (nd+5) % 4;
+  if ( evt & B_LEFT ) nx--;
+  if ( evt & B_RIGHT ) nx++;
+  if ( evt & B_ROTL ) nd = (nd+3) % 4;
+  if ( evt & B_ROTR ) nd = (nd+5) % 4;
 
   if ( testPiece(board, st->p, nd, nx, st->y) ) {
     st->dir = nd;
@@ -265,7 +264,7 @@ int playerLogic(struct Board *board, struct Player *st, char evt, char force_dro
 
   if ( force_drop ) {
     ny++;
-  } else if (evt & E_SDROP) {
+  } else if (evt & B_SDROP) {
     ny++;
   }
   
@@ -275,7 +274,7 @@ int playerLogic(struct Board *board, struct Player *st, char evt, char force_dro
     return nextRound(board, st);
   }
     
-  if ( evt & E_HDROP ) {
+  if ( evt & B_HDROP ) {
     return nextRound(board, st);
   }
 
@@ -283,8 +282,6 @@ int playerLogic(struct Board *board, struct Player *st, char evt, char force_dro
 }
 
 int main(int argc, char** argv) {
-  log = fopen("debug.log", "a");
-  
   int WIDTH = argc > 1 ? atoi(argv[1])+2 : 12;
   int HEIGHT = argc > 2 ? atoi(argv[2])+1 : 21;
 
@@ -332,9 +329,9 @@ int main(int argc, char** argv) {
   int ticks = computeDelay(pl1.score + pl2.score);
 
   while (1) {
-    short keys = getKeys();
-    char p1keys = keys & 0xFF;
-    char p2keys = keys >> 8;
+    short btns = getButtons();
+    char p1btns = btns & 0xFF;
+    char p2btns = btns >> 8;
 
     char force_drop = 0;
     if ( --ticks == 0 ) {
@@ -342,11 +339,11 @@ int main(int argc, char** argv) {
       ticks = computeDelay(pl1.score + pl2.score);
     }
 
-    if (!playerLogic(&board, &pl1, p1keys, force_drop)) {
+    if (!playerLogic(&board, &pl1, p1btns, force_drop)) {
       break;
     }
     
-    if (!playerLogic(&board, &pl2, p2keys, force_drop)) {
+    if (!playerLogic(&board, &pl2, p2btns, force_drop)) {
       break;
     }
 
@@ -381,6 +378,5 @@ int main(int argc, char** argv) {
   
   flip();
 
-  fclose(log);
   return 0;
 }

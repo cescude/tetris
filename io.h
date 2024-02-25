@@ -17,24 +17,24 @@
 #define P2_HDROP 'v'
 #define P2_QUIT 'q'
 
-enum Key {
-  E_QUIT = 1<<1,
-  E_LEFT = 1<<2,
-  E_RIGHT = 1<<3,
-  E_ROTL = 1<<4,
-  E_ROTR = 1<<5,
-  E_HDROP = 1<<6,
-  E_SDROP = 1<<7,
+enum Button {
+  B_QUIT = 1<<1,
+  B_LEFT = 1<<2,
+  B_RIGHT = 1<<3,
+  B_ROTL = 1<<4,
+  B_ROTR = 1<<5,
+  B_HDROP = 1<<6,
+  B_SDROP = 1<<7,
 };
 
-#define E_MOVEMENT_KEY (E_LEFT|E_RIGHT)
+#define B_MOVEMENT_KEY (B_LEFT|B_RIGHT)
 
 /* Wait 1 decisecond */
 void tick() {
   usleep(10 * 10000);
 }
 
-unsigned short getKeys() {
+unsigned short getButtons() {
 
   struct termios attr = {0};
   if ( tcgetattr( 0, &attr ) < 0 ) {
@@ -56,27 +56,27 @@ unsigned short getKeys() {
   unsigned char k1 = 0;
   unsigned char k2 = 0;
   
-  if ( read( 0, &buf, 1 ) > 0 ) {
+  while ( read( 0, &buf, 1 ) > 0 ) {
 
 #define KEY_CASE(var, k, evt) case k: var |= evt; break
     switch ( buf ) {
-      KEY_CASE(k1, P1_QUIT, E_QUIT);
-      KEY_CASE(k1, P1_LEFT, E_LEFT);
-      KEY_CASE(k1, P1_RIGHT, E_RIGHT);
-      KEY_CASE(k1, P1_ROTL, E_ROTL);
-      KEY_CASE(k1, P1_ROTR, E_ROTR);
-      KEY_CASE(k1, P1_SDROP, E_SDROP);
-      KEY_CASE(k1, P1_HDROP, E_HDROP);
+      KEY_CASE(k1, P1_QUIT, B_QUIT);
+      KEY_CASE(k1, P1_LEFT, B_LEFT);
+      KEY_CASE(k1, P1_RIGHT, B_RIGHT);
+      KEY_CASE(k1, P1_ROTL, B_ROTL);
+      KEY_CASE(k1, P1_ROTR, B_ROTR);
+      KEY_CASE(k1, P1_SDROP, B_SDROP);
+      KEY_CASE(k1, P1_HDROP, B_HDROP);
     }
 
     switch ( buf ) {
-      KEY_CASE(k2, P2_QUIT, E_QUIT);
-      KEY_CASE(k2, P2_LEFT, E_LEFT);
-      KEY_CASE(k2, P2_RIGHT, E_RIGHT);
-      KEY_CASE(k2, P2_ROTL, E_ROTL);
-      KEY_CASE(k2, P2_ROTR, E_ROTR);
-      KEY_CASE(k2, P2_SDROP, E_SDROP);
-      KEY_CASE(k2, P2_HDROP, E_HDROP);
+      KEY_CASE(k2, P2_QUIT, B_QUIT);
+      KEY_CASE(k2, P2_LEFT, B_LEFT);
+      KEY_CASE(k2, P2_RIGHT, B_RIGHT);
+      KEY_CASE(k2, P2_ROTL, B_ROTL);
+      KEY_CASE(k2, P2_ROTR, B_ROTR);
+      KEY_CASE(k2, P2_SDROP, B_SDROP);
+      KEY_CASE(k2, P2_HDROP, B_HDROP);
     }
 #undef KEY_CASE
     
