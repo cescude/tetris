@@ -8,6 +8,8 @@
 #include "io.h"			/* Cursor & input functions  */
 #include "pieces.h"		/* Piece definitions */
 
+FILE* log = NULL;
+
 struct Player {
   int x, y, dir;
   enum Piece p, pn;
@@ -24,20 +26,13 @@ struct Board {
 void printLayer(char *buffer, int width, int height, char clear) {
   for ( int i=0; i<height; i++ ) {
     for ( int j=0; j<width; j++ ) {
-      /* switch ( buffer[i*width+j] ) { */
-      /* case 0: if (clear) putstr(" "); else cursorRt(1); break; */
-      /* case '#': putstr("\u25A0"); break; */
-      /* case '@': putstr("\u25A3"); break; */
-      /* case '.': putstr("\u25A1"); break; */
-      /* default: */
-      /* 	putstr("\u25A0"); break; */
-      /* } */
-      if ( buffer[i*width+j] ) {
-	putchr(buffer[i*width+j]);
-      } else if (clear) {
-	putchr(' ');
-      } else {
-	cursorRt(1);
+      switch ( buffer[i*width+j] ) {
+      case 0: if (clear) putstr(" "); else cursorRt(1); break;
+      case '#': putstr("\u25A0"); break;
+      case '@': putstr("\u25A3"); break;
+      case '.': putstr("\u25A1"); break;
+      default:
+	putstr("\u25A0"); break;
       }
     }
     putstr("\n");
@@ -213,7 +208,10 @@ int nextRound(struct Board *board, struct Player *st) {
   if ( num_lines ) {
     printBackground(board);
     flip();
-    getEvents(num_lines*2);	/* Just need a simple delay */
+    /* Longer delay for more lines*/
+    for ( int i=0; i<num_lines; i++ ) {
+      tick();
+    }
     squashAllLines(board);
   }
 
@@ -234,7 +232,7 @@ int computeDelay(int score) {
 
 
 /* return 0 if end-of-game, 1 otherwise */
-int playerLogic(struct Board *board, struct Player *st, char evt) {
+int playerLogic(struct Board *board, struct Player *st, char evt, char force_drop) {
 
   /* Set player to active if a movement key was detected */
   if ( evt & E_MOVEMENT_KEY ) {
@@ -265,7 +263,9 @@ int playerLogic(struct Board *board, struct Player *st, char evt) {
 
   int ny = st->y;
 
-  if ( evt & (E_TIMER | E_SDROP) ) {
+  if ( force_drop ) {
+    ny++;
+  } else if (evt & E_SDROP) {
     ny++;
   }
   
@@ -283,6 +283,8 @@ int playerLogic(struct Board *board, struct Player *st, char evt) {
 }
 
 int main(int argc, char** argv) {
+  log = fopen("debug.log", "a");
+  
   int WIDTH = argc > 1 ? atoi(argv[1])+2 : 12;
   int HEIGHT = argc > 2 ? atoi(argv[2])+1 : 21;
 
@@ -327,16 +329,24 @@ int main(int argc, char** argv) {
     
   drawFrame(&board, &pl1, &pl2);
 
-  while (1) {
-    short evt = getEvents(computeDelay(pl1.score + pl2.score));
-    char p1evt = evt & 0xFF;
-    char p2evt = evt >> 8;
+  int ticks = computeDelay(pl1.score + pl2.score);
 
-    if (!playerLogic(&board, &pl1, p1evt)) {
+  while (1) {
+    short keys = getKeys();
+    char p1keys = keys & 0xFF;
+    char p2keys = keys >> 8;
+
+    char force_drop = 0;
+    if ( --ticks == 0 ) {
+      force_drop = 1;
+      ticks = computeDelay(pl1.score + pl2.score);
+    }
+
+    if (!playerLogic(&board, &pl1, p1keys, force_drop)) {
       break;
     }
     
-    if (!playerLogic(&board, &pl2, p2evt)) {
+    if (!playerLogic(&board, &pl2, p2keys, force_drop)) {
       break;
     }
 
@@ -355,7 +365,7 @@ int main(int argc, char** argv) {
     printBackground(&board);
     printForeground(&board);
     flip();
-    getEvents(1);
+    tick();
   }
 
   printBackground(&board);
@@ -370,5 +380,7 @@ int main(int argc, char** argv) {
   cursorOn();
   
   flip();
+
+  fclose(log);
   return 0;
 }

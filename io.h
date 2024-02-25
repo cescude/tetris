@@ -17,8 +17,7 @@
 #define P2_HDROP 'v'
 #define P2_QUIT 'q'
 
-enum Event {
-  E_TIMER = 1<<0,
+enum Key {
   E_QUIT = 1<<1,
   E_LEFT = 1<<2,
   E_RIGHT = 1<<3,
@@ -30,7 +29,13 @@ enum Event {
 
 #define E_MOVEMENT_KEY (E_LEFT|E_RIGHT)
 
-unsigned short getEvents(int delay) {
+/* Wait 1 decisecond */
+void tick() {
+  usleep(10 * 10000);
+}
+
+unsigned short getKeys() {
+
   struct termios attr = {0};
   if ( tcgetattr( 0, &attr ) < 0 ) {
     perror("tcgetattr");
@@ -39,12 +44,14 @@ unsigned short getEvents(int delay) {
   attr.c_lflag &= ~ICANON;
   attr.c_lflag &= ~ECHO;
   attr.c_cc[VMIN] = 0;
-  attr.c_cc[VTIME] = delay; /* tenths of a second */
+  attr.c_cc[VTIME] = 0;
 
   if ( tcsetattr( 0, TCSANOW, &attr ) < 0 ) {
     perror( "tcsetattr" );
   }
 
+  tick();
+  
   unsigned char buf = 0;
   unsigned char k1 = 0;
   unsigned char k2 = 0;
@@ -73,8 +80,6 @@ unsigned short getEvents(int delay) {
     }
 #undef KEY_CASE
     
-  } else {
-    k1 = k2 = E_TIMER;
   }
 
   attr.c_lflag |= ICANON;
