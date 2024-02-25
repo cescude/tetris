@@ -1,23 +1,27 @@
 #ifndef __IO_H__
 #define __IO_H__
 
-#define P1_LEFT 'h'
-#define P1_RIGHT 'l'
-#define P1_ROTL 'j'
-#define P1_ROTR 'k'
-#define P1_SDROP 'u'
+
+#define P1_GHOST '`'
+#define P1_LEFT 'j'
+#define P1_RIGHT 'k'
+#define P1_ROTL 'u'
+#define P1_ROTR 'i'
+#define P1_SDROP 'h'
 #define P1_HDROP 'n'
 #define P1_QUIT 'q'
 
-#define P2_LEFT 's'
-#define P2_RIGHT 'g'
-#define P2_ROTL 'd'
-#define P2_ROTR 'f'
-#define P2_SDROP 'r'
+#define P2_GHOST '`'
+#define P2_LEFT 'd'
+#define P2_RIGHT 'f'
+#define P2_ROTL 'e'
+#define P2_ROTR 'r'
+#define P2_SDROP 'g'
 #define P2_HDROP 'v'
 #define P2_QUIT 'q'
 
 enum Button {
+  B_GHOST = 1<<0,
   B_QUIT = 1<<1,
   B_LEFT = 1<<2,
   B_RIGHT = 1<<3,
@@ -60,6 +64,7 @@ unsigned short getButtons() {
 
 #define KEY_CASE(var, k, evt) case k: var |= evt; break
     switch ( buf ) {
+      KEY_CASE(k1, P1_GHOST, B_GHOST);
       KEY_CASE(k1, P1_QUIT, B_QUIT);
       KEY_CASE(k1, P1_LEFT, B_LEFT);
       KEY_CASE(k1, P1_RIGHT, B_RIGHT);
@@ -70,6 +75,7 @@ unsigned short getButtons() {
     }
 
     switch ( buf ) {
+      KEY_CASE(k2, P1_GHOST, B_GHOST);
       KEY_CASE(k2, P2_QUIT, B_QUIT);
       KEY_CASE(k2, P2_LEFT, B_LEFT);
       KEY_CASE(k2, P2_RIGHT, B_RIGHT);

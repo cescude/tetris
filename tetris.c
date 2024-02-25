@@ -12,7 +12,9 @@ struct Player {
   int x, y, dir;
   enum Piece p, pn;
   int score;
+  int lines;
   int active;
+  int ghost_on;
 };
 
 struct Board {
@@ -106,7 +108,7 @@ void printStats(struct Board *board, struct Player *st, int offset) {
   cursorDn(board->height + offset);
   if ( st->active ) {
     char buffer[100] = {0};
-    snprintf(buffer, sizeof(buffer), "P%d SCORE=%d, NEXT=%c\n", offset+1, st->score, piece_names[st->pn]);
+    snprintf(buffer, sizeof(buffer), "P%d SCORE=%d, LINES=%d, NEXT=%c\n", offset+1, st->score, st->lines, piece_names[st->pn]);
     putstr(buffer);
   } else {
     putstr("PLAYER 2?\n");
@@ -119,11 +121,11 @@ void drawFrame(struct Board *board, struct Player *pl1, struct Player *pl2) {
 
   memset(board->foreground, 0, board->width*board->height);
 
-  if ( pl1->active ) {
+  if ( pl1->active && pl1->ghost_on ) {
     placeGhost(board, pl1);
   }
 
-  if ( pl2->active ) {
+  if ( pl2->active && pl2->ghost_on ) {
     placeGhost(board, pl2);
   }
 
@@ -219,13 +221,14 @@ int nextRound(struct Board *board, struct Player *st) {
   st->dir = 0;
   st->x = board->width/2-1;
   st->y = 0;
-  st->score += num_lines;
+  st->score += num_lines * 100;
+  st->lines += num_lines;
 
   return testPiece(board, st->p, st->dir, st->x, st->y);
 }
 
-int computeDelay(int score) {
-  int delay = 10 - score/10;
+int computeDelay(int lines) {
+  int delay = 10 - lines/10;
   return delay < 0 ? 0 : delay;
 }
 
@@ -245,6 +248,10 @@ int playerLogic(struct Board *board, struct Player *st, char evt, char force_dro
 
   /* When player isn't active, don't do anything? */
   if (!st->active) return 1;
+
+  if ( evt & B_GHOST ) {
+    st->ghost_on = !st->ghost_on;
+  }
 
   int nx = st->x;
   int nd = st->dir;
@@ -275,6 +282,7 @@ int playerLogic(struct Board *board, struct Player *st, char evt, char force_dro
   }
     
   if ( evt & B_HDROP ) {
+    st->score += 100;
     return nextRound(board, st);
   }
 
@@ -307,9 +315,11 @@ int main(int argc, char** argv) {
     .y = -1,
     .dir = 0,
     .score = 0,
+    .lines = 0,
     .p = rand()%NUM_PIECES,
     .pn = rand()%NUM_PIECES,
     .active = 1,
+    .ghost_on = 0,
   };
 
   struct Player pl2 = {
@@ -317,16 +327,18 @@ int main(int argc, char** argv) {
     .y = -1,
     .dir = 0,
     .score = 0,
+    .lines = 0,
     .p = rand()%NUM_PIECES,
     .pn = rand()%NUM_PIECES,
     .active = 0,
+    .ghost_on = 0,
   };
 
   cursorOff();
     
   drawFrame(&board, &pl1, &pl2);
 
-  int ticks = computeDelay(pl1.score + pl2.score);
+  int ticks = computeDelay(pl1.lines + pl2.lines);
 
   while (1) {
     short btns = getButtons();
@@ -336,7 +348,7 @@ int main(int argc, char** argv) {
     char force_drop = 0;
     if ( --ticks == 0 ) {
       force_drop = 1;
-      ticks = computeDelay(pl1.score + pl2.score);
+      ticks = computeDelay(pl1.lines + pl2.lines);
     }
 
     if (!playerLogic(&board, &pl1, p1btns, force_drop)) {
