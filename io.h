@@ -101,28 +101,32 @@ unsigned short getButtons() {
 static int buffer_len = 0;
 static char buffer[10000] = {0};
 
-void putstr(char* s) {
-  for ( int i=0; s[i]; i++ ) {
-    buffer[buffer_len++] = s[i];
-  }
-}
-
-void putchr(char c) {
-  buffer[buffer_len++] = c;
-}
-
-void flip() {
+/* Write contents of buffer to stdout */
+void blip() {
   int bytes_written = 0;
   while (bytes_written < buffer_len) {
     int result = write(1, buffer + bytes_written, buffer_len - bytes_written);
     if ( result < 0 ) {
-      perror("flip/write");
+      perror("blip/write");
     }
     bytes_written += result;
   }
 
   buffer_len = 0;
   buffer[0] = 0;
+}
+
+void putchr(char c) {
+  buffer[buffer_len++] = c;
+  if ( buffer_len == sizeof(buffer) ) {
+    blip();
+  }
+}
+
+void putstr(char* s) {
+  for ( int i=0; s[i]; i++ ) {
+    putchr(s[i]);
+  }
 }
 
 void cursorOn() {

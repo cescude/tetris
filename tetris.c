@@ -23,11 +23,11 @@ struct Board {
   int width, height;
 };
 
-void printLayer(char *buffer, int width, int height, char clear) {
+void printLayer(char *buffer, int width, int height, char opaque) {
   for ( int i=0; i<height; i++ ) {
     for ( int j=0; j<width; j++ ) {
       switch ( buffer[i*width+j] ) {
-      case 0: if (clear) putstr("  "); else cursorRt(2); break;
+      case 0: if (opaque) putstr("  "); else cursorRt(2); break;
       case '#': putstr("##"); break;
       case '@': putstr("@@"); break;
       case '.': putstr(".."); break;
@@ -141,7 +141,7 @@ void drawFrame(struct Board *board, struct Player *pl1, struct Player *pl2) {
   printStats(board, pl1, 0);
   printStats(board, pl2, 1);
 
-  flip();
+  blip();
 }
 
 void initBoard(struct Board *board) {
@@ -212,7 +212,7 @@ int nextRound(struct Board *board, struct Player *st) {
 
   if ( num_lines ) {
     printBackground(board);
-    flip();
+    blip();
     /* Longer delay for more lines*/
     for ( int i=0; i<num_lines; i++ ) {
       tick();
@@ -375,7 +375,7 @@ int main(int argc, char** argv) {
 
     printBackground(&board);
     printForeground(&board);
-    flip();
+    blip();
     tick();
   }
 
@@ -390,7 +390,7 @@ int main(int argc, char** argv) {
   cursorDn(HEIGHT + 2);
   cursorOn();
   
-  flip();
+  blip();
 
   return 0;
 }
