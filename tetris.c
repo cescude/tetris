@@ -99,8 +99,7 @@ void placePlayer(struct Board *board, struct Player *st, char id) {
   placePiece(board->foreground, board->width, board->height, st->p, st->dir, st->x, st->y, id);
 }
 
-void stampPlayer(struct Board *board, struct Player *st) {
-  int stamp_point = landingPoint(board, st);
+void stampPlayer(struct Board *board, struct Player *st, int stamp_point) {
   placePiece(board->background, board->width, board->height, st->p, st->dir, st->x, stamp_point, '^');
 }
 
@@ -202,9 +201,14 @@ void squashAllLines(struct Board *board) {
 /* return 0 if there can't be another round... */
 int nextRound(struct Board *board, struct Player *st) {
 
-  stampPlayer(board, st);
+  /* Draw the piece onto the background, whereever it nestles in */
+  int stamp_point = landingPoint(board, st);
+  stampPlayer(board, st, stamp_point);
 
   int num_lines = countAllLines(board);
+
+  /* Compute score for this round */
+  st->score += num_lines*num_lines*100 + (stamp_point - st->y);
 
   if ( num_lines ) {
     printBackground(board);
@@ -221,7 +225,6 @@ int nextRound(struct Board *board, struct Player *st) {
   st->dir = 0;
   st->x = board->width/2-1;
   st->y = 0;
-  st->score += num_lines * 100;
   st->lines += num_lines;
 
   return testPiece(board, st->p, st->dir, st->x, st->y);
@@ -282,7 +285,6 @@ int playerLogic(struct Board *board, struct Player *st, char evt, char force_dro
   }
     
   if ( evt & B_HDROP ) {
-    st->score += 100;
     return nextRound(board, st);
   }
 
