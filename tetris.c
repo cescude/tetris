@@ -406,6 +406,10 @@ void quitting_animation(struct Board *board) {
   printBackground(board);
 }
 
+int max(int a, int b) {
+  return a > b ? a : b;
+}
+
 int main(int argc, char** argv) {
   int WIDTH = argc > 1 ? atoi(argv[1])+2 : 12;
   int HEIGHT = argc > 2 ? atoi(argv[2])+1 : 21;
@@ -461,6 +465,8 @@ int main(int argc, char** argv) {
   int ticks = computeDelay(pl1.lines + pl2.lines);
   chk(ticks >= 0);
 
+  int num_players = 0;
+  
   while (1) {
     unsigned short btns = getButtons();
 
@@ -485,6 +491,8 @@ int main(int argc, char** argv) {
       break;
     }
 
+    num_players = max(num_players, pl1.active + pl2.active);
+
     if ( !pl1.active && !pl2.active ) break;
 
     drawFrame(&board, &pl1, &pl2);
@@ -494,11 +502,14 @@ int main(int argc, char** argv) {
 
   pl1.active = pl2.active = 1;
   printStats(&board, &pl1, 0);
-  printStats(&board, &pl2, 1);
+
+  if ( num_players > 1 ) {
+    printStats(&board, &pl2, 1);
+  }
 
   free(buffer);
 
-  cursorDn(HEIGHT + 2);
+  cursorDn(HEIGHT + num_players);
   cursorOn();
   
   blip();
