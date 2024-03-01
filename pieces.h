@@ -9,8 +9,13 @@ enum Piece {
   P_Z,
   P_I,
   P_T,
-  NUM_PIECES,
+  P_END,
 };
+
+void chk_piece(enum Piece p) {
+  chk(p >= 0);
+  chk(p < P_END);
+}
 
 char piece_names[] = {'O', 'L', 'J', 'S', 'Z', 'I', 'T'};
 
@@ -24,11 +29,11 @@ char piece_names[] = {'O', 'L', 'J', 'S', 'Z', 'I', 'T'};
 /* Returns buffer offsets for each segment of a piece in a board of
    width `w` */
 void getOffsets(int offsets[4], enum Piece p, int variant, int w) {
+  chk(w > 2);
 
   switch (p) {
-  case NUM_PIECES:
-    printf("Bad times!\n");
-    exit(1);
+  case P_END:
+    chk(0);
     break;
   case P_O:
     init8(offsets, 0,0, 1,0, 0,1, 1,1); break;

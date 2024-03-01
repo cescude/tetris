@@ -5,6 +5,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "chk.h"
+
 #include "io.h"			/* Cursor & input functions  */
 #include "pieces.h"		/* Piece definitions */
 
@@ -17,13 +19,42 @@ struct Player {
   int ghost_on;
 };
 
+void chk_player(struct Player *pl) {
+  chk(pl != NULL);
+  chk_piece(pl->p);
+  chk_piece(pl->pn);
+  chk(pl->score >= 0);
+  chk(pl->lines >= 0);
+  chk_bool(pl->active);
+  chk_bool(pl->ghost_on);
+
+  /* Note about checking x & y: because x & y are used as a starting
+     point, and the piece offsets are relative to that, there's the
+     potential for x/y to be offscreen but--because we're drawing four
+     points--parts (or all) of the piece end up in a valid
+     position. */
+}
+
 struct Board {
   char* background;
   char* foreground;
   int width, height;
 };
 
+void chk_board(struct Board *b) {
+  chk(b != NULL);
+  chk(b->background != NULL);
+  chk(b->foreground != NULL);
+  chk(b->width >= 2);
+  chk(b->height >= 1);
+}
+
 void printLayer(char *buffer, int width, int height, char opaque) {
+  chk(buffer != NULL);
+  chk(width >=0 );
+  chk(height >=0 );
+  chk_bool(opaque);
+  
   for ( int i=0; i<height; i++ ) {
     for ( int j=0; j<width; j++ ) {
       switch ( buffer[i*width+j] ) {
@@ -43,15 +74,20 @@ void printLayer(char *buffer, int width, int height, char opaque) {
 }
 
 void printForeground(struct Board *board) {
+  chk_board(board);
   printLayer(board->foreground, board->width, board->height, 0);
 }
 
 void printBackground(struct Board *board) {
+  chk_board(board);
   printLayer(board->background, board->width, board->height, 1);
 }
 
 /* return 1 if `p` can be placed at this location */
 int testPiece(struct Board *board, enum Piece p, int rotation, int x, int y) {
+  chk_board(board);
+  chk_piece(p);
+  
   int offsets[4] = {0};
   getOffsets(offsets, p, rotation, board->width);
 
@@ -67,6 +103,9 @@ int testPiece(struct Board *board, enum Piece p, int rotation, int x, int y) {
 }
 
 int landingPoint(struct Board *board, struct Player *st) {
+  chk_board(board);
+  chk_player(st);
+  
   int y = st->y;
   
   /* go down until we collide */
@@ -74,10 +113,18 @@ int landingPoint(struct Board *board, struct Player *st) {
     y++;
   }
 
-  return y-1; 			/* Need to backup one */
+  y--;	       /* We only got here after a collision, so backup one */
+
+  chk(y < board->height);
+  return y;
 }
 
 void placePiece(char *buffer, int width, int height, enum Piece p, int rotation, int x, int y, char ch) {
+  chk(buffer != NULL);
+  chk(width >= 0);
+  chk(height >= 0);
+  chk_piece(p);
+  
   int offsets[4] = {0};
   getOffsets(offsets, p, rotation, width);
 
@@ -91,19 +138,33 @@ void placePiece(char *buffer, int width, int height, enum Piece p, int rotation,
 }
 
 void placeGhost(struct Board *board, struct Player *st) {
+  chk_board(board);
+  chk_player(st);
+  
   int ghost_point = landingPoint(board, st);
   placePiece(board->foreground, board->width, board->height, st->p, st->dir, st->x, ghost_point, '.');
 }
 
 void placePlayer(struct Board *board, struct Player *st, char id) {
+  chk_board(board);
+  chk_player(st);
+  
   placePiece(board->foreground, board->width, board->height, st->p, st->dir, st->x, st->y, id);
 }
 
 void stampPlayer(struct Board *board, struct Player *st, int stamp_point) {
+  chk_board(board);
+  chk_player(st);
+  
   placePiece(board->background, board->width, board->height, st->p, st->dir, st->x, stamp_point, '^');
 }
 
 void printStats(struct Board *board, struct Player *st, int offset) {
+  chk_board(board);
+  chk_player(st);
+  chk(st->pn < sizeof(piece_names) / sizeof(piece_names[0]));
+  chk(offset >= 0);
+  
   cursorDn(board->height + offset);
   if ( st->active ) {
     char buffer[100] = {0};
@@ -116,6 +177,10 @@ void printStats(struct Board *board, struct Player *st, int offset) {
 }
 
 void drawFrame(struct Board *board, struct Player *pl1, struct Player *pl2) {
+  chk_board(board);
+  chk_player(pl1);
+  chk_player(pl2);
+  
   printBackground(board);
 
   memset(board->foreground, 0, board->width*board->height);
@@ -145,6 +210,8 @@ void drawFrame(struct Board *board, struct Player *pl1, struct Player *pl2) {
 }
 
 void initBoard(struct Board *board) {
+  chk_board(board);
+  
   int width = board->width;
   int height = board->height;
   
@@ -161,16 +228,25 @@ void initBoard(struct Board *board) {
 }
 
 int testLine(struct Board *board, int y) {
+  chk_board(board);
+  chk(y >= 0);
+  chk(y < board->height);
+  
   int offset = y * board->width;
   for (int i=0; i<board->width; i++) {
     if ( !board->background[offset+i] ) {
       return 0;
     }
   }
+  
   return 1;
 }
 
 void squashLine(struct Board *board, int y) {
+  chk_board(board);
+  chk(y >= 0);
+  chk(y < board->height);
+  
   for (; y>0; y--) {
     int offset = y * board->width;
     for (int i=1; i<board->width-1; i++) {
@@ -183,14 +259,20 @@ void squashLine(struct Board *board, int y) {
 }
 
 int countAllLines(struct Board *board) {
+  chk_board(board);
+  
   int num_lines = 0;
   for ( int i=0; i<board->height-1; i++ ) {
     num_lines += testLine(board, i);
   }
+
+  chk(num_lines >= 0);
   return num_lines;
 }
 
 void squashAllLines(struct Board *board) {
+  chk_board(board);
+  
   for (int i=0; i<board->height-1; i++) {
     if (testLine(board, i)) {
       squashLine(board, i);
@@ -200,6 +282,8 @@ void squashAllLines(struct Board *board) {
 
 /* return 0 if there can't be another round... */
 int nextRound(struct Board *board, struct Player *st) {
+  chk_board(board);
+  chk_player(st);
 
   /* Draw the piece onto the background, whereever it nestles in */
   int stamp_point = landingPoint(board, st);
@@ -221,38 +305,48 @@ int nextRound(struct Board *board, struct Player *st) {
   }
 
   st->p = st->pn;
-  while ( (st->pn = rand()%NUM_PIECES) == st->p ); /* Don't do two-in-a-rows */
+  while ( (st->pn = rand()%P_END) == st->p ); /* Don't do two-in-a-rows */
   st->dir = 0;
   st->x = board->width/2-1;
   st->y = 0;
   st->lines += num_lines;
 
+  chk_player(st);
+
   return testPiece(board, st->p, st->dir, st->x, st->y);
 }
 
 int computeDelay(int lines) {
+  chk(lines >= 0);
+  
   int delay = 10 - lines/10;
-  return delay < 0 ? 0 : delay;
+  int clamped_delay = delay < 0 ? 0 : delay;
+
+  chk(clamped_delay >= 0);
+  return clamped_delay;
 }
 
 
 /* return 0 if end-of-game, 1 otherwise */
-int playerLogic(struct Board *board, struct Player *st, char evt, char force_drop) {
+int playerLogic(struct Board *board, struct Player *st, unsigned char btns, char force_drop) {
+  chk_board(board);
+  chk_player(st);
+  chk_bool(force_drop);
 
   /* Set player to active if a movement key was detected */
-  if ( evt & B_MOVEMENT_KEY ) {
+  if ( btns & B_MOVEMENT_KEY ) {
     st->active = 1;
   }
 
   /* Set player to inactive if the player quit */
-  if ( evt & B_QUIT ) {
+  if ( btns & B_QUIT ) {
     st->active = 0;
   }
 
   /* When player isn't active, don't do anything? */
   if (!st->active) return 1;
 
-  if ( evt & B_GHOST ) {
+  if ( btns & B_GHOST ) {
     st->ghost_on = !st->ghost_on;
   }
 
@@ -260,35 +354,56 @@ int playerLogic(struct Board *board, struct Player *st, char evt, char force_dro
   int nd = st->dir;
   
   /* Try moving left/right or rotating left/right... */
-  if ( evt & B_LEFT ) nx--;
-  if ( evt & B_RIGHT ) nx++;
-  if ( evt & B_ROTL ) nd = (nd+3) % 4;
-  if ( evt & B_ROTR ) nd = (nd+5) % 4;
+  if ( btns & B_LEFT ) nx--;
+  if ( btns & B_RIGHT ) nx++;
+  if ( btns & B_ROTL ) nd = (nd+3) % 4;
+  if ( btns & B_ROTR ) nd = (nd+5) % 4;
 
   if ( testPiece(board, st->p, nd, nx, st->y) ) {
     st->dir = nd;
     st->x = nx;
+    chk_player(st);
   }
 
   int ny = st->y;
 
   if ( force_drop ) {
     ny++;
-  } else if (evt & B_SDROP) {
+  } else if (btns & B_SDROP) {
     ny++;
   }
   
   if ( testPiece(board, st->p, st->dir, st->x, ny) ) {
     st->y = ny;
+    chk_player(st);
   } else {
     return nextRound(board, st);
   }
     
-  if ( evt & B_HDROP ) {
+  if ( btns & B_HDROP ) {
     return nextRound(board, st);
   }
 
   return 1;
+}
+
+void quitting_animation(struct Board *board) {
+  chk_board(board);
+  
+  memcpy(board->foreground, board->background, board->width * board->height);
+  
+  for (int limit=board->height-2; limit>=0; limit-=1) {
+    for (int i=board->height-2; i>=limit; i--) {
+      memset(board->foreground + i*board->width + 1, 'X', board->width - 2);
+    }
+
+    printBackground(board);
+    printForeground(board);
+    blip();
+    tick();
+  }
+
+  printBackground(board);
 }
 
 int main(int argc, char** argv) {
@@ -309,6 +424,7 @@ int main(int argc, char** argv) {
     .width = WIDTH,
     .height = HEIGHT,
   };
+  chk_board(&board);
 
   initBoard(&board);
 
@@ -318,11 +434,12 @@ int main(int argc, char** argv) {
     .dir = 0,
     .score = 0,
     .lines = 0,
-    .p = rand()%NUM_PIECES,
-    .pn = rand()%NUM_PIECES,
+    .p = rand()%P_END,
+    .pn = rand()%P_END,
     .active = 1,
     .ghost_on = 0,
   };
+  chk_player(&pl1);
 
   struct Player pl2 = {
     .x = WIDTH/2-1,
@@ -330,34 +447,41 @@ int main(int argc, char** argv) {
     .dir = 0,
     .score = 0,
     .lines = 0,
-    .p = rand()%NUM_PIECES,
-    .pn = rand()%NUM_PIECES,
+    .p = rand()%P_END,
+    .pn = rand()%P_END,
     .active = 0,
     .ghost_on = 0,
   };
+  chk_player(&pl2);
 
   cursorOff();
     
   drawFrame(&board, &pl1, &pl2);
 
   int ticks = computeDelay(pl1.lines + pl2.lines);
+  chk(ticks >= 0);
 
   while (1) {
-    short btns = getButtons();
-    char p1btns = btns & 0xFF;
-    char p2btns = btns >> 8;
+    unsigned short btns = getButtons();
 
+    /* Player 1 buttons are in the lower byte */
+#define P1(b) (b & 0xFF)
+
+    /* Player 2 buttons are in the upper byte */
+#define P2(b) ((b >> 8) & 0xFF)
+    
     char force_drop = 0;
     if ( --ticks == 0 ) {
       force_drop = 1;
       ticks = computeDelay(pl1.lines + pl2.lines);
+      chk(ticks >= 0);
     }
 
-    if (!playerLogic(&board, &pl1, p1btns, force_drop)) {
+    if (!playerLogic(&board, &pl1, P1(btns), force_drop)) {
       break;
     }
     
-    if (!playerLogic(&board, &pl2, p2btns, force_drop)) {
+    if (!playerLogic(&board, &pl2, P2(btns), force_drop)) {
       break;
     }
 
@@ -366,20 +490,7 @@ int main(int argc, char** argv) {
     drawFrame(&board, &pl1, &pl2);
   }
 
-  memcpy(board.foreground, board.background, WIDTH*HEIGHT);
-  
-  for (int limit=HEIGHT-2; limit>=0; limit-=1) {
-    for (int i=HEIGHT-2; i>=limit; i--) {
-      memset(board.foreground + i*WIDTH + 1, 'X', WIDTH - 2);
-    }
-
-    printBackground(&board);
-    printForeground(&board);
-    blip();
-    tick();
-  }
-
-  printBackground(&board);
+  quitting_animation(&board);
 
   pl1.active = pl2.active = 1;
   printStats(&board, &pl1, 0);

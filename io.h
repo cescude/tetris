@@ -1,7 +1,6 @@
 #ifndef __IO_H__
 #define __IO_H__
 
-
 #define P1_GHOST '`'
 #define P1_LEFT 'j'
 #define P1_RIGHT 'k'
@@ -98,25 +97,30 @@ unsigned short getButtons() {
   return (k2 << 8) + k1;
 }
 
-static int buffer_len = 0;
+static size_t buffer_len = 0;
 static char buffer[10000] = {0};
 
 /* Write contents of buffer to stdout */
 void blip() {
+  chk(buffer_len <= sizeof(buffer));
+  
   int bytes_written = 0;
   while (bytes_written < buffer_len) {
     int result = write(1, buffer + bytes_written, buffer_len - bytes_written);
-    if ( result < 0 ) {
-      perror("blip/write");
-    }
+
+    chk(result >= 0);
     bytes_written += result;
   }
 
   buffer_len = 0;
   buffer[0] = 0;
+
+  chk(buffer_len == 0);
 }
 
 void putchr(char c) {
+  chk(buffer_len < sizeof(buffer));
+  
   buffer[buffer_len++] = c;
   if ( buffer_len == sizeof(buffer) ) {
     blip();
@@ -124,7 +128,10 @@ void putchr(char c) {
 }
 
 void putstr(char* s) {
-  for ( int i=0; s[i]; i++ ) {
+  chk(s != NULL);
+  chk(strlen(s) < 64); /* If we're given a large string, probably an error */
+  
+  for ( size_t i=0; s[i]; i++ ) {
     putchr(s[i]);
   }
 }
@@ -138,18 +145,33 @@ void cursorOff() {
 }
 
 void cursorRt(int n) {
+  chk(n >= 0);
+  chk(buffer_len < sizeof(buffer));
+  
   snprintf(buffer+buffer_len, sizeof(buffer)-buffer_len, "\033[%dC", n);
   buffer_len += strlen(buffer+buffer_len);
+
+  chk(buffer_len <= sizeof(buffer));
 }
 
 void cursorUp(int n) {
+  chk(n >= 0);
+  chk(buffer_len < sizeof(buffer));
+  
   snprintf(buffer+buffer_len, sizeof(buffer)-buffer_len, "\033[%dA", n);
   buffer_len += strlen(buffer+buffer_len);
+
+  chk(buffer_len <= sizeof(buffer));
 }
 
 void cursorDn(int n) {
+  chk(n >= 0);
+  chk(buffer_len < sizeof(buffer));
+  
   snprintf(buffer+buffer_len, sizeof(buffer)-buffer_len, "\033[%dB", n);
   buffer_len += strlen(buffer+buffer_len);
+
+  chk(buffer_len <= sizeof(buffer));
 }
 
 #endif
