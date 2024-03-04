@@ -59,11 +59,11 @@ void printLayer(char *buffer, int width, int height, char opaque) {
     for ( int j=0; j<width; j++ ) {
       switch ( buffer[i*width+j] ) {
       case 0: if (opaque) putstr("  "); else cursorRt(2); break;
-      case '#': putstr("##"); break;
-      case '@': putstr("@@"); break;
+      case '#': putstr("()"); break;
+      case '@': putstr("{}"); break;
       case '.': putstr(".."); break;
       default:
-	putstr("XX"); break;
+	putstr("[]"); break;
 	break;
       }
     }
